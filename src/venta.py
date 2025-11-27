@@ -17,21 +17,21 @@ class Venta:
     # Crear una venta (y descontar existencias)
     @classmethod
     def crear(cls, id_usuario, fecha, id_producto, cantidad):
-        # 1. Cargar producto
+        # Cargar producto
         producto = Producto.buscar_por_id(id_producto)
         if not producto:
             raise ValueError("El producto no existe.")
 
-        # 2. Validar stock
+        # Validar stock
         if producto.existencias < cantidad:
             raise ValueError("No hay existencias suficientes para la venta.")
 
-        # 3. Calcular precios
+        # Calcular precios
         precio_unitario = producto.precio_venta
         subtotal = precio_unitario * cantidad
         total_venta = subtotal
 
-        # 4. Insertar venta
+        # Insertar venta
         conn = get_conn()
         try:
             cur = conn.cursor()
@@ -59,7 +59,7 @@ class Venta:
             cur.close()
             conn.close()
 
-        # 5. Descontar existencias del producto
+        # Descontar existencias del producto
         producto.existencias -= cantidad
         producto.actualizar()
 

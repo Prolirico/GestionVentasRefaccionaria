@@ -90,6 +90,37 @@ class Producto:
         finally:
             cur.close()
             conn.close()
+            
+    #Buscar Porducto
+    @classmethod
+    def buscar_por_id(cls, id_producto):
+        print(f"[DEBUG] Buscando producto por ID={id_producto}")
+
+        conn = get_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT id, nombre, marca, tipo, categoria, tipo_version, 
+                    precio_costo, precio_venta, existencias
+                FROM productos 
+                WHERE id = %s
+            """, (id_producto,))
+
+            row = cur.fetchone()
+            if not row:
+                print(f"[DEBUG] Producto con ID {id_producto} no encontrado")
+                return None
+
+            print(f"[DEBUG] Producto encontrado: {row[1]}")
+            return cls(*row)
+
+        except Exception as e:
+            print(f"[ERROR] Error al buscar producto por ID: {e}")
+            return None
+
+        finally:
+            cur.close()
+            conn.close()
 
     # ACTUALIZAR
     def actualizar(self):

@@ -439,35 +439,175 @@ class PuntoVentaGUI:
         for v in vehiculos:
             self.output.insert(tk.END, str(v))
 
+    ##
     @requiere_autenticacion
     def crear_venta(self):
         win = tk.Toplevel(self.master)
         win.title("Crear Venta")
+        win.geometry("400x300")
 
-        tk.Label(win, text="ID Producto:").pack()
-        id_producto = tk.Entry(win)
-        id_producto.pack()
+        # Obtener productos disponibles (con existencias > 0)
+        productos = Producto.listar_todos()
+        productos_disponibles = [p for p in productos if p.existencias > 0]
 
-        tk.Label(win, text="Cantidad:").pack()
-        cantidad = tk.Entry(win)
-        cantidad.pack()
+        if not productos_disponibles:
+            messagebox.showwarning("Sin stock", "No hay productos disponibles para vender.")
+            win.destroy()
+            return
 
-        def guardar():
+        # Variables para almacenar selección
+        producto_seleccionado = tk.StringVar(win)
+        cantidad_var = tk.StringVar(win)
+        info_stock = tk.StringVar(win)
+        info_stock.set("Seleccione un producto")
+
+        # Widgets
+        tk.Label(win, text="Seleccionar Producto:", font=("Arial", 10, "bold")).pack(pady=5)
+        
+        # Dropdown de productos
+        nombres_productos = [f"{p.nombre} - {p.marca} (Stock: {p.existencias})" for p in productos_disponibles]
+        producto_seleccionado.set(nombres_productos[0])  # valor por defecto
+        
+        dropdown = tk.OptionMenu(win, producto_seleccionado, *nombres_productos)
+        dropdown.config(width=40)
+        dropdown.pack(pady=5)
+
+        # Info de stock actual
+        tk.Label(win, textvariable=info_stock, font=("Arial", 9), fg="blue").pack(pady=5)
+
+        # Cantidad
+        tk.Label(win, text="Cantidad:", font=("Arial", 10, "bold")).pack(pady=5)
+        entry_cantidad = tk.Entry(win, textvariable=cantidad_var, font=("Arial", 10))
+        entry_cantidad.pack(pady=5)
+
+        # Info de precio y total
+        info_precio = tk.Label(win, text="", font=("Arial", 9))
+        info_precio.pack(pady=5)
+
+        # Función para actualizar info cuando seleccionan producto
+        def actualizar_info(*args):
             try:
-                # Usar el usuario actual
-                Venta.crear(
-                    self.current_user.id,  # ID usuario del login
-                    "2024-01-01",
-                    int(id_producto.get()),
-                    int(cantidad.get())
+                index = nombres_productos.index(producto_seleccionado.get())
+                producto = productos_disponibles[index]
+                info_stock.set(f"Stock disponible: {producto.existencias} unidades")
+                
+                # Actualizar precio
+                if cantidad_var.get().isdigit():
+                    cantidad = int(cantidad_var.get())
+                    if cantidad > 0:
+                        total = cantidad * producto.precio_venta
+                        info_precio.config(
+                            text=f"Precio unitario: ${producto.precio_venta:.2f} | Total: ${total:.2f}",
+                            fg="green"
+                        )
+                    else:
+                        info_precio.config(text="")
+                else:
+                    info_precio.config(text=f"Precio unitario: ${producto.precio_venta:.2f}")
+                    
+            except (ValueError, IndexError):
+                info_stock.set("Seleccione un producto")
+
+        # Función para validar cantidad
+        def validar_cantidad(*args):
+            if cantidad_var.get():
+                try:
+                    cantidad = int(cantidad_var.get())
+                    if cantidad < 0:
+                        cantidad_var.set("1")
+                except ValueError:
+                    # Si no es número, mantener solo dígitos
+                    cantidad_var.set(''.join(filter(str.isdigit, cantidad_var.get())))
+            actualizar_info()
+
+        # Vincular eventos
+        producto_seleccionado.trace('w', actualizar_info)
+        cantidad_var.trace('w', validar_cantidad)
+
+        # Función para procesar la venta
+        def procesar_venta():
+            try:
+                # Obtener producto seleccionado
+                index = nombres_productos.index(producto_seleccionado.get())
+                producto = productos_disponibles[index]
+                
+                # Validar cantidad
+                if not cantidad_var.get().strip():
+                    messagebox.showerror("Error", "Ingrese la cantidad a vender")
+                    return
+                    
+                cantidad = int(cantidad_var.get())
+                
+                if cantidad <= 0:
+                    messagebox.showerror("Error", "La cantidad debe ser mayor a 0")
+                    return
+                    
+                if cantidad > producto.existencias:
+                    messagebox.showerror(
+                        "Stock insuficiente", 
+                        f"No hay suficiente stock. Disponible: {producto.existencias} unidades"
+                    )
+                    return
+
+                # Confirmar venta
+                confirmacion = messagebox.askyesno(
+                    "Confirmar Venta",
+                    f"¿Confirmar venta de {cantidad} unidad(es) de {producto.nombre}?\n\n"
+                    f"Precio unitario: ${producto.precio_venta:.2f}\n"
+                    f"Total: ${cantidad * producto.precio_venta:.2f}"
                 )
-                messagebox.showinfo("Exito", "Venta registrada.")
-                win.destroy()
+                
+                if not confirmacion:
+                    return
+
+                # Crear la venta
+                from datetime import datetime
+                fecha_actual = datetime.now().strftime("%Y-%m-%d")
+                
+                venta = Venta.crear(
+                    self.current_user.id,
+                    fecha_actual,
+                    producto.id,
+                    cantidad
+                )
+                
+                if venta:
+                    messagebox.showinfo(
+                        "Venta Exitosa", 
+                        f"Venta registrada correctamente!\n\n"
+                        f"Producto: {producto.nombre}\n"
+                        f"Cantidad: {cantidad}\n"
+                        f"Total: ${venta.total_venta:.2f}"
+                    )
+                    win.destroy()
+                    
+            except ValueError as e:
+                messagebox.showerror("Error", f"Dato inválido: {e}")
             except Exception as e:
-                messagebox.showerror("Error", str(e))
+                messagebox.showerror("Error", f"No se pudo completar la venta: {e}")
 
-        tk.Button(win, text="Registrar Venta", command=guardar).pack()
+        # Botón de vender
+        btn_vender = tk.Button(
+            win, 
+            text="PROCESAR VENTA", 
+            command=procesar_venta,
+            bg="green",
+            fg="white",
+            font=("Arial", 11, "bold"),
+            padx=20,
+            pady=10
+        )
+        btn_vender.pack(pady=15)
 
+        # Inicializar info del primer producto
+        actualizar_info()
+
+        # Focus en cantidad
+        entry_cantidad.focus_set()
+
+        # Tecla Enter para procesar venta
+        win.bind('<Return>', lambda e: procesar_venta())
+    ##
     @requiere_autenticacion
     def listar_ventas(self):
         self.output.delete(0, tk.END)
