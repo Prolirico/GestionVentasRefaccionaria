@@ -1,5 +1,5 @@
 import hashlib
-from db_connection import get_conn
+from dbConnection import get_conn
 
 def hash_password(pwd: str):
     if pwd is None:

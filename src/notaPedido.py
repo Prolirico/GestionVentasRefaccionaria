@@ -1,4 +1,4 @@
-from db_connection import get_conn
+from dbConnection import get_conn
 
 class NotaPedido:
     def __init__(self, id_, id_usuario, nombre_producto, detalles, fecha):

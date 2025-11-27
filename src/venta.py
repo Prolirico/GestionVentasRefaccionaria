@@ -1,5 +1,4 @@
-# venta.py
-from db_connection import get_conn
+from dbConnection import get_conn
 from producto import Producto
 
 class Venta:

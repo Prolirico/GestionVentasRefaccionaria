@@ -1,4 +1,4 @@
-from db_connection import get_conn
+from dbConnection import get_conn
 
 class Producto:
     def __init__(
