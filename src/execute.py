@@ -345,7 +345,7 @@ class PuntoVentaGUI:
 
     @requiere_admin
     def eliminar_usuario(self):
-        # CORREGIDO: Pedir correo en lugar de nombre
+        # Pedir correo en lugar de nombre
         correo = simpledialog.askstring("Eliminar Usuario", "Correo del usuario a eliminar:")
         if not correo:
             return
@@ -439,7 +439,6 @@ class PuntoVentaGUI:
         for v in vehiculos:
             self.output.insert(tk.END, str(v))
 
-    ##
     @requiere_autenticacion
     def crear_venta(self):
         win = tk.Toplevel(self.master)
@@ -484,7 +483,7 @@ class PuntoVentaGUI:
         info_precio = tk.Label(win, text="", font=("Arial", 9))
         info_precio.pack(pady=5)
 
-        # Función para actualizar info cuando seleccionan producto
+        # Actualizar info cuando seleccionen producto
         def actualizar_info(*args):
             try:
                 index = nombres_productos.index(producto_seleccionado.get())
@@ -508,7 +507,7 @@ class PuntoVentaGUI:
             except (ValueError, IndexError):
                 info_stock.set("Seleccione un producto")
 
-        # Función para validar cantidad
+        # Validar cantidad
         def validar_cantidad(*args):
             if cantidad_var.get():
                 try:
@@ -516,7 +515,6 @@ class PuntoVentaGUI:
                     if cantidad < 0:
                         cantidad_var.set("1")
                 except ValueError:
-                    # Si no es número, mantener solo dígitos
                     cantidad_var.set(''.join(filter(str.isdigit, cantidad_var.get())))
             actualizar_info()
 
@@ -524,7 +522,7 @@ class PuntoVentaGUI:
         producto_seleccionado.trace('w', actualizar_info)
         cantidad_var.trace('w', validar_cantidad)
 
-        # Función para procesar la venta
+        # Procesar la venta
         def procesar_venta():
             try:
                 # Obtener producto seleccionado
@@ -586,7 +584,7 @@ class PuntoVentaGUI:
             except Exception as e:
                 messagebox.showerror("Error", f"No se pudo completar la venta: {e}")
 
-        # Botón de vender
+        # Boton de vender
         btn_vender = tk.Button(
             win, 
             text="PROCESAR VENTA", 
@@ -607,7 +605,7 @@ class PuntoVentaGUI:
 
         # Tecla Enter para procesar venta
         win.bind('<Return>', lambda e: procesar_venta())
-    ##
+
     @requiere_autenticacion
     def listar_ventas(self):
         self.output.delete(0, tk.END)
@@ -619,32 +617,179 @@ class PuntoVentaGUI:
     def registrar_compra(self):
         win = tk.Toplevel(self.master)
         win.title("Registrar Orden de Compra")
+        win.geometry("500x400")
 
-        labels = ["ID Proveedor", "Fecha", "ID Producto", "Cantidad", "Precio Unitario", "Estado"]
-        entries = {}
+        # Obtener todos los productos
+        productos = Producto.listar_todos()
+        
+        if not productos:
+            messagebox.showwarning("Sin productos", "No hay productos registrados en el sistema.")
+            win.destroy()
+            return
 
-        for l in labels:
-            tk.Label(win, text=l + ":").pack()
-            e = tk.Entry(win)
-            e.pack()
-            entries[l] = e
+        # Variables
+        producto_seleccionado = tk.StringVar(win)
+        cantidad_var = tk.StringVar(win, value="1")
+        precio_var = tk.StringVar(win)
+        proveedor_var = tk.StringVar(win, value="Proveedor General")
+        fecha_var = tk.StringVar(win, value="2024-01-01")  # Puedes cambiarlo después por fecha actual
+        
+        # Info labels
+        info_producto = tk.StringVar(win, value="Seleccione un producto")
+        info_total = tk.StringVar(win, value="Total: $0.00")
 
-        def guardar():
+        # Widgets
+        tk.Label(win, text="Registrar Orden de Compra", font=("Arial", 12, "bold")).pack(pady=10)
+
+        # Fecha
+        tk.Label(win, text="Fecha (YYYY-MM-DD):", font=("Arial", 10, "bold")).pack(anchor='w', padx=20)
+        entry_fecha = tk.Entry(win, textvariable=fecha_var, font=("Arial", 10))
+        entry_fecha.pack(pady=5, padx=20, fill='x')
+
+        # Proveedor
+        tk.Label(win, text="Proveedor:", font=("Arial", 10, "bold")).pack(anchor='w', padx=20)
+        entry_proveedor = tk.Entry(win, textvariable=proveedor_var, font=("Arial", 10))
+        entry_proveedor.pack(pady=5, padx=20, fill='x')
+
+        # Producto
+        tk.Label(win, text="Producto:", font=("Arial", 10, "bold")).pack(anchor='w', padx=20)
+        nombres_productos = [f"{p.id} - {p.nombre} ({p.marca}) - Stock: {p.existencias}" for p in productos]
+        producto_seleccionado.set(nombres_productos[0])
+        
+        dropdown_productos = tk.OptionMenu(win, producto_seleccionado, *nombres_productos)
+        dropdown_productos.config(width=50)
+        dropdown_productos.pack(pady=5, padx=20, fill='x')
+
+        # Info del producto seleccionado
+        tk.Label(win, textvariable=info_producto, font=("Arial", 9), fg="blue").pack(pady=5)
+
+        # Cantidad
+        tk.Label(win, text="Cantidad a comprar:", font=("Arial", 10, "bold")).pack(anchor='w', padx=20)
+        entry_cantidad = tk.Entry(win, textvariable=cantidad_var, font=("Arial", 10))
+        entry_cantidad.pack(pady=5, padx=20, fill='x')
+
+        # Precio unitario
+        tk.Label(win, text="Precio unitario de compra:", font=("Arial", 10, "bold")).pack(anchor='w', padx=20)
+        entry_precio = tk.Entry(win, textvariable=precio_var, font=("Arial", 10))
+        entry_precio.pack(pady=5, padx=20, fill='x')
+
+        # Total
+        tk.Label(win, textvariable=info_total, font=("Arial", 11, "bold"), fg="green").pack(pady=10)
+
+        # Funciones
+        def actualizar_info(*args):
             try:
-                OrdenCompra.crear(
-                    int(entries["ID Proveedor"].get()),
-                    entries["Fecha"].get(),
-                    int(entries["ID Producto"].get()),
-                    int(entries["Cantidad"].get()),
-                    float(entries["Precio Unitario"].get()),
-                    entries["Estado"].get()
-                )
-                messagebox.showinfo("Exito", "Orden de compra registrada.")
-                win.destroy()
-            except Exception as e:
-                messagebox.showerror("Error", str(e))
+                index = nombres_productos.index(producto_seleccionado.get())
+                producto = productos[index]
+                info_producto.set(f"Producto actual: {producto.nombre} | Stock actual: {producto.existencias}")
+                
+                # Calcular total
+                if precio_var.get() and cantidad_var.get():
+                    try:
+                        precio = float(precio_var.get())
+                        cantidad = int(cantidad_var.get())
+                        total = precio * cantidad
+                        info_total.set(f"Total: ${total:.2f}")
+                    except ValueError:
+                        info_total.set("Total: $0.00")
+                        
+            except (ValueError, IndexError):
+                info_producto.set("Seleccione un producto")
 
-        tk.Button(win, text="Guardar", command=guardar).pack()
+        def validar_numeros(*args):
+            # Validar que cantidad sea entero
+            if cantidad_var.get():
+                cantidad_var.set(''.join(filter(str.isdigit, cantidad_var.get())))
+            
+            # Validar que precio sea decimal
+            if precio_var.get():
+                cleaned = ''.join(c for c in precio_var.get() if c.isdigit() or c == '.')
+                if cleaned.count('.') > 1:
+                    cleaned = cleaned.replace('.', '', 1)
+                precio_var.set(cleaned)
+            
+            actualizar_info()
+
+        def procesar_compra():
+            try:
+                # Validaciones
+                if not fecha_var.get() or not proveedor_var.get():
+                    messagebox.showerror("Error", "Complete fecha y proveedor")
+                    return
+                    
+                if not cantidad_var.get() or not precio_var.get():
+                    messagebox.showerror("Error", "Complete cantidad y precio")
+                    return
+                
+                cantidad = int(cantidad_var.get())
+                precio = float(precio_var.get())
+                
+                if cantidad <= 0 or precio <= 0:
+                    messagebox.showerror("Error", "Cantidad y precio deben ser mayores a 0")
+                    return
+
+                # Obtener producto seleccionado
+                index = nombres_productos.index(producto_seleccionado.get())
+                producto = productos[index]
+                id_producto = producto.id
+
+                # Confirmar
+                confirmacion = messagebox.askyesno(
+                    "Confirmar Orden",
+                    f"¿Crear orden de compra?\n\n"
+                    f"Fecha: {fecha_var.get()}\n"
+                    f"Proveedor: {proveedor_var.get()}\n"
+                    f"Producto: {producto.nombre}\n"
+                    f"Cantidad: {cantidad}\n"
+                    f"Precio unitario: ${precio:.2f}\n"
+                    f"Total: ${precio * cantidad:.2f}"
+                )
+                
+                if confirmacion:
+                    # Crear orden de compra
+                    orden = OrdenCompra.crear(
+                        proveedor_var.get(),    # nombre_proveedor
+                        fecha_var.get(),        # fecha
+                        id_producto,            # id_producto
+                        cantidad,               # cantidad
+                        precio                  # precio_unitario
+                    )
+                    
+                    if orden:
+                        messagebox.showinfo(
+                            "Éxito", 
+                            f"Orden de compra #{orden.id} creada exitosamente!\n"
+                            f"Stock actualizado: +{cantidad} unidades"
+                        )
+                        win.destroy()
+                        
+            except Exception as e:
+                messagebox.showerror("Error", f"No se pudo crear la orden: {e}")
+
+        # Vincular eventos
+        producto_seleccionado.trace('w', actualizar_info)
+        cantidad_var.trace('w', validar_numeros)
+        precio_var.trace('w', validar_numeros)
+
+        # Botón
+        tk.Button(
+            win, 
+            text="CREAR ORDEN DE COMPRA", 
+            command=procesar_compra,
+            bg="orange",
+            fg="white",
+            font=("Arial", 11, "bold"),
+            padx=20,
+            pady=10
+        ).pack(pady=20)
+
+        # Inicializar
+        actualizar_info()
+        entry_cantidad.focus_set()
+
+        # Tecla Enter
+        win.bind('<Return>', lambda e: procesar_compra())
+    ##
 
     @requiere_admin
     def listar_compras(self):
@@ -674,7 +819,7 @@ class PuntoVentaGUI:
             try:
                 # Usar el usuario actual
                 NotaPedido.crear(
-                    self.current_user.id,  # ID usuario del login
+                    self.current_user.id,
                     prod.get(),
                     det.get(),
                     fecha.get()

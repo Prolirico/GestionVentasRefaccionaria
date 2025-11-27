@@ -99,7 +99,7 @@ def crear_tablas():
                 """
                 CREATE TABLE IF NOT EXISTS ordenes_compra (
                     id INT AUTO_INCREMENT PRIMARY KEY,
-                    id_proveedor INT NOT NULL,
+                    nombre_proveedor VARCHAR(150) NOT NULL,
                     fecha DATETIME NOT NULL,
                     id_producto INT NOT NULL,
                     nombre_producto VARCHAR(150) NOT NULL,

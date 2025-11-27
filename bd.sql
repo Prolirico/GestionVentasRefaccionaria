@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS ventas (
 
 CREATE TABLE IF NOS EXISTS ordenes_compra (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    id_proveedor INTEGER NOT NULL,
+    nombre_proveedor VARCHAR(150) NOT NULL,
     fecha TEXT NOT NULL,
     id_producto INTEGER NOT NULL,
     nombre_producto TEXT NOT NULL,

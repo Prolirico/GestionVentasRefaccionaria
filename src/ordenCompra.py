@@ -2,10 +2,10 @@ from dbConnection import get_conn
 from producto import Producto
 
 class OrdenCompra:
-    def __init__(self, id_, id_proveedor, fecha, id_producto, nombre_producto,
-                 precio_unitario, cantidad, subtotal, total_orden, estado):
+    def __init__(self, id_, nombre_proveedor, fecha, id_producto, nombre_producto,
+                 precio_unitario, cantidad, subtotal, total_orden):
         self.id = id_
-        self.id_proveedor = id_proveedor
+        self.nombre_proveedor = nombre_proveedor  # Cambiado a texto
         self.fecha = fecha
         self.id_producto = id_producto
         self.nombre_producto = nombre_producto
@@ -13,17 +13,16 @@ class OrdenCompra:
         self.cantidad = cantidad
         self.subtotal = subtotal
         self.total_orden = total_orden
-        self.estado = estado
 
-    # Crear una orden de compra (aumenta existencias)
+    # Crear una orden de compra
     @classmethod
-    def crear(cls, id_proveedor, fecha, id_producto, cantidad, precio_unitario, estado="pendiente"):
+    def crear(cls, nombre_proveedor, fecha, id_producto, cantidad, precio_unitario):
         # Cargar producto
         producto = Producto.buscar_por_id(id_producto)
         if not producto:
             raise ValueError("El producto no existe.")
 
-        # Calcular totales
+        # Calcular total
         subtotal = precio_unitario * cantidad
         total_orden = subtotal
 
@@ -34,12 +33,12 @@ class OrdenCompra:
 
             cur.execute("""
                 INSERT INTO ordenes_compra
-                (id_proveedor, fecha, id_producto, nombre_producto, precio_unitario,
-                 cantidad, subtotal, total_orden, estado)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                (nombre_proveedor, fecha, id_producto, nombre_producto, precio_unitario,
+                 cantidad, subtotal, total_orden)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (
-                id_proveedor, fecha, id_producto, producto.nombre,
-                precio_unitario, cantidad, subtotal, total_orden, estado
+                nombre_proveedor, fecha, id_producto, producto.nombre,
+                precio_unitario, cantidad, subtotal, total_orden
             ))
 
             conn.commit()
@@ -49,15 +48,14 @@ class OrdenCompra:
             cur.close()
             conn.close()
 
-        # Aumentar existencias SOLO si el pedido esta completada
-        if estado == "completada":
-            producto.existencias += cantidad
-            producto.actualizar()
+        # Aumentar existencias
+        producto.existencias += cantidad
+        producto.actualizar()
 
-        return cls(new_id, id_proveedor, fecha, id_producto, producto.nombre,
-                   precio_unitario, cantidad, subtotal, total_orden, estado)
+        return cls(new_id, nombre_proveedor, fecha, id_producto, producto.nombre,
+                   precio_unitario, cantidad, subtotal, total_orden)
 
-    # Buscar por ID
+    # Buscar
     @classmethod
     def buscar_por_id(cls, id_orden):
         conn = get_conn()
@@ -65,8 +63,8 @@ class OrdenCompra:
             cur = conn.cursor()
 
             cur.execute("""
-                SELECT id, id_proveedor, fecha, id_producto, nombre_producto,
-                       precio_unitario, cantidad, subtotal, total_orden, estado
+                SELECT id, nombre_proveedor, fecha, id_producto, nombre_producto,
+                       precio_unitario, cantidad, subtotal, total_orden
                 FROM ordenes_compra
                 WHERE id = %s
             """, (id_orden,))
@@ -81,7 +79,7 @@ class OrdenCompra:
             cur.close()
             conn.close()
 
-    # Listar todas
+    # Listar
     @classmethod
     def listar_todas(cls):
         conn = get_conn()
@@ -89,8 +87,8 @@ class OrdenCompra:
             cur = conn.cursor()
 
             cur.execute("""
-                SELECT id, id_proveedor, fecha, id_producto, nombre_producto,
-                       precio_unitario, cantidad, subtotal, total_orden, estado
+                SELECT id, nombre_proveedor, fecha, id_producto, nombre_producto,
+                       precio_unitario, cantidad, subtotal, total_orden
                 FROM ordenes_compra
                 ORDER BY fecha DESC
             """)
@@ -102,7 +100,7 @@ class OrdenCompra:
             cur.close()
             conn.close()
 
-    # Actualizar orden
+    # Actualizar
     def actualizar(self):
         conn = get_conn()
         try:
@@ -110,21 +108,19 @@ class OrdenCompra:
 
             cur.execute("""
                 UPDATE ordenes_compra
-                SET id_proveedor = %s,
+                SET nombre_proveedor = %s,
                     fecha = %s,
                     id_producto = %s,
                     nombre_producto = %s,
                     precio_unitario = %s,
                     cantidad = %s,
                     subtotal = %s,
-                    total_orden = %s,
-                    estado = %s
+                    total_orden = %s
                 WHERE id = %s
             """, (
-                self.id_proveedor, self.fecha, self.id_producto,
+                self.nombre_proveedor, self.fecha, self.id_producto,
                 self.nombre_producto, self.precio_unitario,
-                self.cantidad, self.subtotal, self.total_orden,
-                self.estado, self.id
+                self.cantidad, self.subtotal, self.total_orden, self.id
             ))
 
             conn.commit()
@@ -145,4 +141,4 @@ class OrdenCompra:
             conn.close()
 
     def __str__(self):
-        return f"Orden #{self.id} - {self.nombre_producto} x{self.cantidad} ({self.estado})"
+        return f"Orden #{self.id} - {self.nombre_producto} x{self.cantidad} - {self.nombre_proveedor} (${self.total_orden})"
