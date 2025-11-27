@@ -82,7 +82,7 @@ class PuntoVentaGUI:
 
         def guardar():
             try:
-                Usuario.crear(nombre.get(), rol.get(), correo.get(), password.get())
+                Usuario.crear(nombre.get(), correo.get(), password.get(), rol.get())
                 messagebox.showinfo("Éxito", "Usuario registrado.")
                 win.destroy()
             except Exception as e:

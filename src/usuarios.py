@@ -12,8 +12,12 @@ class Usuario:
         self.nombre = nombre
         self.rol = rol
 
+    # CREAR USUARIO
     @classmethod
     def crear(cls, nombre, correo, password, rol="vendedor"):
+        print(f"[DEBUG] Intentando crear usuario:")
+        print(f"        nombre={nombre}, correo={correo}, rol={rol}")
+
         conn = get_conn()
         try:
             cur = conn.cursor()
@@ -27,11 +31,48 @@ class Usuario:
 
             conn.commit()
             uid = cur.lastrowid
+
+            print(f"[DEBUG] Usuario creado exitosamente con ID={uid}")
+
             return cls(uid, nombre, rol)
+
+        except Exception as e:
+            print(f"[ERROR] No se pudo crear el usuario: {e}")
+            return None
+
         finally:
             cur.close()
             conn.close()
 
+    # LISTAR TODOS LOS USUARIOS
+    @classmethod
+    def listar_todos(cls):
+        print("[DEBUG] Listando usuarios...")
+
+        conn = get_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT id, nombre, rol FROM usuarios ORDER BY nombre")
+
+            rows = cur.fetchall()
+
+            if not rows:
+                print("[DEBUG] No hay usuarios registrados.")
+                return []
+
+            print(f"[DEBUG] Se encontraron {len(rows)} usuarios.")
+
+            return [cls(r[0], r[1], r[2]) for r in rows]
+
+        except Exception as e:
+            print(f"[ERROR] Error al listar usuarios: {e}")
+            return []
+
+        finally:
+            cur.close()
+            conn.close()
+
+    # OTROS METODOS
     @classmethod
     def autenticar(cls, correo, password):
         conn = get_conn()
@@ -45,12 +86,17 @@ class Usuario:
 
             row = cur.fetchone()
             if not row:
+                print("[DEBUG] No existe el correo en la base de datos.")
                 return None
 
             stored_hash = row[3]
             if stored_hash == hash_password(password):
+                print("[DEBUG] Autenticación correcta.")
                 return cls(row[0], row[1], row[2])
+
+            print("[DEBUG] Contraseña incorrecta.")
             return None
+
         finally:
             cur.close()
             conn.close()
@@ -75,18 +121,6 @@ class Usuario:
             cur.execute("SELECT id, nombre, rol FROM usuarios WHERE correo = %s", (correo,))
             row = cur.fetchone()
             return cls(row[0], row[1], row[2]) if row else None
-        finally:
-            cur.close()
-            conn.close()
-
-    @classmethod
-    def listar_todos(cls):
-        conn = get_conn()
-        try:
-            cur = conn.cursor()
-            cur.execute("SELECT id, nombre, rol FROM usuarios ORDER BY nombre")
-            rows = cur.fetchall()
-            return [cls(r[0], r[1], r[2]) for r in rows]
         finally:
             cur.close()
             conn.close()
