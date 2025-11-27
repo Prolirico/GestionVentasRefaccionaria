@@ -1,4 +1,5 @@
 from dbConnection import get_conn
+from datetime import datetime
 
 class NotaPedido:
     def __init__(self, id_, id_usuario, nombre_producto, detalles, fecha):
@@ -10,7 +11,13 @@ class NotaPedido:
 
     # Crear una nota de producto faltante
     @classmethod
-    def crear(cls, id_usuario, nombre_producto, detalles, fecha):
+    def crear(cls, id_usuario, nombre_producto, detalles, fecha=None):
+        # Si no se proporciona fecha, usar fecha actual
+        if fecha is None:
+            fecha_actual = datetime.now().strftime("%Y-%m-%d")
+        else:
+            fecha_actual = fecha
+            
         conn = get_conn()
         try:
             cur = conn.cursor()
@@ -19,12 +26,12 @@ class NotaPedido:
                 INSERT INTO notas_productos_faltantes
                 (id_usuario, nombre_producto, detalles, fecha)
                 VALUES (%s, %s, %s, %s)
-            """, (id_usuario, nombre_producto, detalles, fecha))
+            """, (id_usuario, nombre_producto, detalles, fecha_actual))
 
             conn.commit()
             new_id = cur.lastrowid
 
-            return cls(new_id, id_usuario, nombre_producto, detalles, fecha)
+            return cls(new_id, id_usuario, nombre_producto, detalles, fecha_actual)
 
         finally:
             cur.close()

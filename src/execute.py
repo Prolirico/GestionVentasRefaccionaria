@@ -119,7 +119,7 @@ class PuntoVentaGUI:
                 self.salir()
                 return
                 
-            password = simpledialog.askstring("Inicio de Sesion", "Contrasena:", show='*')
+            password = simpledialog.askstring("Inicio de Sesion", "Contraseña:", show='*')
             if password is None:
                 self.salir()
                 return
@@ -789,7 +789,6 @@ class PuntoVentaGUI:
 
         # Tecla Enter
         win.bind('<Return>', lambda e: procesar_compra())
-    ##
 
     @requiere_admin
     def listar_compras(self):
@@ -802,34 +801,92 @@ class PuntoVentaGUI:
     def registrar_nota(self):
         win = tk.Toplevel(self.master)
         win.title("Registrar Nota de Producto Faltante")
+        win.geometry("500x300")
 
-        tk.Label(win, text="Nombre Producto:").pack()
-        prod = tk.Entry(win)
-        prod.pack()
+        # Variables
+        producto_var = tk.StringVar(win)
+        detalles_var = tk.StringVar(win)
+        
+        # Widgets
+        tk.Label(win, text="Registrar Producto Faltante", font=("Arial", 12, "bold")).pack(pady=10)
 
-        tk.Label(win, text="Detalles:").pack()
-        det = tk.Entry(win)
-        det.pack()
+        # Producto
+        tk.Label(win, text="Nombre del Producto:", font=("Arial", 10, "bold")).pack(anchor='w', padx=20)
+        entry_producto = tk.Entry(win, textvariable=producto_var, font=("Arial", 10))
+        entry_producto.pack(pady=5, padx=20, fill='x')
 
-        tk.Label(win, text="Fecha:").pack()
-        fecha = tk.Entry(win)
-        fecha.pack()
+        # Detalles
+        tk.Label(win, text="Detalles/Motivo:", font=("Arial", 10, "bold")).pack(anchor='w', padx=20)
+        
+        text_detalles = tk.Text(win, height=4, font=("Arial", 10))
+        text_detalles.pack(pady=5, padx=20, fill='x')
 
-        def guardar():
+        # Fecha
+        info_fecha = tk.Label(win, text="La fecha se asignara automaticamente", 
+                            font=("Arial", 9), fg="blue")
+        info_fecha.pack(pady=5)
+
+        def procesar_nota():
             try:
-                # Usar el usuario actual
-                NotaPedido.crear(
-                    self.current_user.id,
-                    prod.get(),
-                    det.get(),
-                    fecha.get()
-                )
-                messagebox.showinfo("Exito", "Nota registrada.")
-                win.destroy()
-            except Exception as e:
-                messagebox.showerror("Error", str(e))
+                # Validaciones
+                if not producto_var.get().strip():
+                    messagebox.showerror("Error", "Ingrese el nombre del producto")
+                    return
+                    
+                if not text_detalles.get("1.0", tk.END).strip():
+                    messagebox.showerror("Error", "Ingrese los detalles de la nota")
+                    return
 
-        tk.Button(win, text="Guardar", command=guardar).pack()
+                producto = producto_var.get().strip()
+                detalles = text_detalles.get("1.0", tk.END).strip()
+
+                # Confirmar
+                confirmacion = messagebox.askyesno(
+                    "Confirmar Nota",
+                    f"¿Crear nota de producto faltante?\n\n"
+                    f"Producto: {producto}\n"
+                    f"Detalles: {detalles}\n\n"
+                    f"Fecha: Automatica (hoy)"
+                )
+                
+                if confirmacion:
+                    # Crear la nota
+                    nota = NotaPedido.crear(
+                        self.current_user.id,  # ID usuario
+                        producto,              # nombre_producto
+                        detalles               # detalles
+                    )
+                    
+                    if nota:
+                        messagebox.showinfo(
+                            "Éxito", 
+                            f"Nota registrada correctamente!\n\n"
+                            f"Producto: {nota.nombre_producto}\n"
+                            f"Fecha: {nota.fecha}\n"
+                            f"Nota ID: #{nota.id}"
+                        )
+                        win.destroy()
+                        
+            except Exception as e:
+                messagebox.showerror("Error", f"No se pudo registrar la nota: {e}")
+
+        # Boton
+        tk.Button(
+            win, 
+            text="REGISTRAR NOTA", 
+            command=procesar_nota,
+            bg="blue",
+            fg="white",
+            font=("Arial", 11, "bold"),
+            padx=20,
+            pady=10
+        ).pack(pady=20)
+
+        # Focus en el primer campo
+        entry_producto.focus_set()
+
+        # Tecla Enter
+        win.bind('<Return>', lambda e: procesar_nota())
 
     @requiere_autenticacion
     def listar_notas(self):
