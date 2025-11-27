@@ -9,10 +9,14 @@ def hash_password(pwd: str):
 class Usuario:
     CODIGO_ADMIN = "ADMIN123"
     
-    def __init__(self, id_, nombre, rol="vendedor"):
+    def __init__(self, id_, nombre, rol="vendedor", correo=None):
         self.id = id_
         self.nombre = nombre
         self.rol = rol
+        self.correo = correo
+        
+    def __str__(self):
+        return f"ID: {self.id}, Nombre: {self.nombre}, Correo: {self.correo}, Rol: {self.rol}"
 
     # CREAR USUARIO CON CODIGO ADMIN
     @classmethod
@@ -62,7 +66,7 @@ class Usuario:
         conn = get_conn()
         try:
             cur = conn.cursor()
-            cur.execute("SELECT id, nombre, rol FROM usuarios ORDER BY nombre")
+            cur.execute("SELECT id, nombre, correo, rol FROM usuarios ORDER BY nombre")
 
             rows = cur.fetchall()
 
@@ -72,7 +76,7 @@ class Usuario:
 
             print(f"[DEBUG] Se encontraron {len(rows)} usuarios.")
 
-            return [cls(r[0], r[1], r[2]) for r in rows]
+            return [cls(r[0], r[1], r[3], r[2]) for r in rows]
 
         except Exception as e:
             print(f"[ERROR] Error al listar usuarios: {e}")

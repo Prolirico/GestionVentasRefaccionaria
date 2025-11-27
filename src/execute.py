@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox, simpledialog
+from functools import wraps
 
 from usuarios import Usuario
 from producto import Producto
@@ -8,15 +9,33 @@ from venta import Venta
 from ordenCompra import OrdenCompra
 from notaPedido import NotaPedido
 
-current_user = None
+def requiere_admin(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if not self.current_user or self.current_user.rol != 'administrador':
+            messagebox.showerror("Permisos", "Accion restringida: se requiere usuario administrador.")
+            return
+        return func(self, *args, **kwargs)
+    return wrapper
+
+def requiere_autenticacion(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if not self.current_user:
+            messagebox.showerror("Permisos", "Debe iniciar sesion para realizar esta accion.")
+            return
+        return func(self, *args, **kwargs)
+    return wrapper
 
 class PuntoVentaGUI:
     def __init__(self, master):
         self.master = master
         self.master.title("Punto de Venta - Refaccionaria")
         self.current_user = None
+        
         self.output = tk.Listbox(self.master, width=100, height=20)
         self.output.pack(padx=10, pady=10)
+        
         # ESTADO DEL USUARIO
         self.user_status = tk.Label(self.master, text="No autenticado", 
                                    font=("Arial", 10), fg="red")
@@ -40,9 +59,9 @@ class PuntoVentaGUI:
 
         # Vehiculos
         self.menu_vehiculos = tk.Menu(self.menubar, tearoff=0)
-        self.menu_vehiculos.add_command(label="Registrar Vehículo", command=self.registrar_vehiculo)
-        self.menu_vehiculos.add_command(label="Listar Vehículos", command=self.listar_vehiculos)
-        self.menubar.add_cascade(label="Vehículos", menu=self.menu_vehiculos)
+        self.menu_vehiculos.add_command(label="Registrar Vehiculo", command=self.registrar_vehiculo)
+        self.menu_vehiculos.add_command(label="Listar Vehiculos", command=self.listar_vehiculos)
+        self.menubar.add_cascade(label="Vehiculos", menu=self.menu_vehiculos)
 
         # Ventas
         self.menu_ventas = tk.Menu(self.menubar, tearoff=0)
@@ -53,7 +72,7 @@ class PuntoVentaGUI:
         # Ordenes de compra
         self.menu_compras = tk.Menu(self.menubar, tearoff=0)
         self.menu_compras.add_command(label="Registrar Orden de Compra", command=self.registrar_compra)
-        self.menu_compras.add_command(label="Listar Órdenes de Compra", command=self.listar_compras)
+        self.menu_compras.add_command(label="Listar Ordenes de Compra", command=self.listar_compras)
         self.menubar.add_cascade(label="Compras", menu=self.menu_compras)
 
         # Notas de productos faltantes
@@ -64,31 +83,15 @@ class PuntoVentaGUI:
 
         # Menu Archivo (Login/Logout)
         self.menu_archivo = tk.Menu(self.menubar, tearoff=0)
-        self.menu_archivo.add_command(label="Cerrar Sesión", command=self.cerrar_sesion)
+        self.menu_archivo.add_command(label="Cerrar Sesion", command=self.cerrar_sesion)
         self.menu_archivo.add_separator()
         self.menu_archivo.add_command(label="Salir", command=self.salir)
         self.menubar.add_cascade(label="Archivo", menu=self.menu_archivo)
+        
         self.master.config(menu=self.menubar)
         # Deshabilitar menus hasta hacer login
         self.ajustar_menu_por_rol()        
         self.master.after(100, self.login_inicial)
-
-    @staticmethod
-    def requiere_admin(func):
-        def wrapper(self, *args, **kwargs):
-            if not hasattr(self, 'current_user') or not self.current_user or self.current_user.rol != 'administrador':
-                messagebox.showerror("Permisos", "Acción restringida: se requiere usuario administrador.")
-                return
-            return func(self, *args, **kwargs)
-        return wrapper
-
-    def requiere_autenticacion(func):
-        def wrapper(self, *args, **kwargs):
-            if not self.current_user:
-                messagebox.showerror("Permisos", "Debe iniciar sesión para realizar esta acción.")
-                return
-            return func(*args, **kwargs)
-        return wrapper
 
     # SISTEMA DE LOGIN
     def login_inicial(self):
@@ -107,16 +110,16 @@ class PuntoVentaGUI:
             if self.registrar_usuario_publico():
                 return
             else:
-                messagebox.showinfo("Info", "Se solicitará inicio de sesión.")
+                messagebox.showinfo("Info", "Se solicitara inicio de sesion.")
 
         # Inicio de sesion (3 intentos)
         for intento in range(3):
-            correo = simpledialog.askstring("Inicio de Sesión", "Correo electrónico:")
+            correo = simpledialog.askstring("Inicio de Sesion", "Correo electronico:")
             if correo is None:
                 self.salir()
                 return
                 
-            password = simpledialog.askstring("Inicio de Sesión", "Contraseña:", show='*')
+            password = simpledialog.askstring("Inicio de Sesion", "Contrasena:", show='*')
             if password is None:
                 self.salir()
                 return
@@ -126,7 +129,7 @@ class PuntoVentaGUI:
                 self.current_user = usuario
                 self.actualizar_estado_usuario()
                 self.ajustar_menu_por_rol()
-                messagebox.showinfo("Éxito", f"Bienvenido, {usuario.nombre}!")
+                messagebox.showinfo("Exito", f"Bienvenido, {usuario.nombre}!")
                 return
             else:
                 if intento < 2:
@@ -155,17 +158,17 @@ class PuntoVentaGUI:
                         return
                     continue
                     
-                correo = simpledialog.askstring("Primer Administrador", "Correo electrónico:")
+                correo = simpledialog.askstring("Primer Administrador", "Correo electronico:")
                 if not correo:
                     continue
                     
-                password = simpledialog.askstring("Primer Administrador", "Contraseña:", show='*')
+                password = simpledialog.askstring("Primer Administrador", "Contrasena:", show='*')
                 if not password:
                     continue
 
                 codigo_admin = simpledialog.askstring(
-                    "Código de Administrador", 
-                    "Ingrese el código de administrador para crear el primer usuario:",
+                    "Codigo de Administrador", 
+                    "Ingrese el codigo de administrador para crear el primer usuario:",
                     show='*'
                 )
                 
@@ -186,41 +189,39 @@ class PuntoVentaGUI:
                     self.actualizar_estado_usuario()
                     self.ajustar_menu_por_rol()
                     messagebox.showinfo(
-                        "Éxito", 
+                        "Exito", 
                         f"Usuario administrador '{usuario.nombre}' creado exitosamente.\n\n"
-                        f"Ahora puedes crear más usuarios desde el menú Usuarios."
+                        f"Ahora puedes crear mas usuarios desde el menu Usuarios."
                     )
                     return True
                     
             except ValueError as e:
-                messagebox.showerror("Error", f"Código incorrecto: {e}")
-                # No salir, permitir reintentar
+                messagebox.showerror("Error", f"Codigo incorrecto: {e}")
             except Exception as e:
                 messagebox.showerror("Error", f"Error al crear usuario: {e}")
                 if not messagebox.askyesno("Reintentar", "¿Intentar de nuevo?"):
                     self.salir()
                     return
 
-
     def registrar_usuario_publico(self):
-        """Registro público que solo permite crear usuarios vendedor"""
+        """Crear usuarios vendedor"""
         try:
             messagebox.showinfo(
-                "Registro Público", 
+                "Registro Publico", 
                 "Solo puedes registrarte como VENDEDOR.\n\n"
                 "Para crear usuarios administrador, un administrador existente "
-                "debe hacerlo desde el menú Usuarios."
+                "debe hacerlo desde el menu Usuarios."
             )
             
             nombre = simpledialog.askstring("Registro - Vendedor", "Nombre completo:")
             if not nombre:
                 return False
                 
-            correo = simpledialog.askstring("Registro - Vendedor", "Correo electrónico:")
+            correo = simpledialog.askstring("Registro - Vendedor", "Correo electronico:")
             if not correo:
                 return False
                 
-            password = simpledialog.askstring("Registro - Vendedor", "Contraseña:", show='*')
+            password = simpledialog.askstring("Registro - Vendedor", "Contrasena:", show='*')
             if not password:
                 return False
 
@@ -230,7 +231,7 @@ class PuntoVentaGUI:
                 self.current_user = usuario
                 self.actualizar_estado_usuario()
                 self.ajustar_menu_por_rol()
-                messagebox.showinfo("Éxito", f"Vendedor registrado: {usuario.nombre}")
+                messagebox.showinfo("Exito", f"Vendedor registrado: {usuario.nombre}")
                 return True
                 
         except Exception as e:
@@ -248,7 +249,7 @@ class PuntoVentaGUI:
             self.user_status.config(text="No autenticado", fg="red")
 
     def ajustar_menu_por_rol(self):
-        """Ajusta los menús según el rol del usuario"""
+        """Ajusta los menus segun el rol del usuario"""
         if not self.current_user:
             # Sin autenticacion admin
             for menu in [self.menu_usuarios, self.menu_productos, self.menu_vehiculos, 
@@ -266,7 +267,7 @@ class PuntoVentaGUI:
             self.menu_usuarios.entryconfig(0, state="disabled")  # Registrar usuario
             self.menu_usuarios.entryconfig(2, state="disabled")  # Eliminar usuario
             self.menu_productos.entryconfig(0, state="disabled")  # Registrar producto
-            self.menu_vehiculos.entryconfig(0, state="disabled")  # Registrar vehículo
+            self.menu_vehiculos.entryconfig(0, state="disabled")  # Registrar vehiculo
             self.menu_compras.entryconfig(0, state="disabled")   # Registrar orden compra
             
             # Habilitar ventas y notas para vendedores
@@ -308,16 +309,16 @@ class PuntoVentaGUI:
             try:
                 codigo_admin = None
                 if rol.get().strip().lower() == 'administrador':
-                    codigo_admin = simpledialog.askstring("Código Admin", 
-                                                        "Ingrese el código de administrador:", 
+                    codigo_admin = simpledialog.askstring("Codigo Admin", 
+                                                        "Ingrese el codigo de administrador:", 
                                                         show='*')
                     if not codigo_admin:
-                        messagebox.showerror("Error", "Se requiere código para administrador.")
+                        messagebox.showerror("Error", "Se requiere codigo para administrador.")
                         return
 
                 Usuario.crear(nombre.get(), correo.get(), password.get(), 
                              rol.get().strip().lower(), codigo_admin)
-                messagebox.showinfo("Éxito", "Usuario registrado.")
+                messagebox.showinfo("Exito", "Usuario registrado.")
                 win.destroy()
             except Exception as e:
                 messagebox.showerror("Error", str(e))
@@ -328,16 +329,28 @@ class PuntoVentaGUI:
     def listar_usuarios(self):
         self.output.delete(0, tk.END)
         usuarios = Usuario.listar_todos()
+        if not usuarios:
+            self.output.insert(tk.END, "No hay usuarios registrados.")
+            return
+            
+        # Mostrar encabezados
+        encabezado = f"{'ID':<5} {'NOMBRE':<30} {'CORREO':<30} {'ROL':<15}"
+        self.output.insert(tk.END, encabezado)
+        self.output.insert(tk.END, "-" * 85)
+        
+        # Mostrar cada usuario
         for u in usuarios:
-            self.output.insert(tk.END, str(u))
+            usuario_str = f"{u.id:<5} {u.nombre:<30} {u.correo if u.correo else 'N/A':<30} {u.rol:<15}"
+            self.output.insert(tk.END, usuario_str)
 
     @requiere_admin
     def eliminar_usuario(self):
-        nombre = simpledialog.askstring("Eliminar Usuario", "Nombre del usuario a eliminar:")
-        if not nombre:
+        # CORREGIDO: Pedir correo en lugar de nombre
+        correo = simpledialog.askstring("Eliminar Usuario", "Correo del usuario a eliminar:")
+        if not correo:
             return
             
-        usuario = Usuario.buscar_por_correo(nombre)
+        usuario = Usuario.buscar_por_correo(correo)
         if not usuario:
             messagebox.showerror("Error", "Usuario no encontrado.")
             return
@@ -345,50 +358,200 @@ class PuntoVentaGUI:
         if messagebox.askyesno("Confirmar", f"¿Eliminar al usuario '{usuario.nombre}'?"):
             try:
                 usuario.eliminar()
-                messagebox.showinfo("Éxito", "Usuario eliminado.")
-                self.listar_usuarios()
+                messagebox.showinfo("Exito", "Usuario eliminado.")
+                self.listar_usuarios()  # Esto deberia funcionar ahora
             except Exception as e:
                 messagebox.showerror("Error", f"No se pudo eliminar: {e}")
 
     @requiere_admin
     def registrar_producto(self):
         win = tk.Toplevel(self.master)
+        win.title("Registrar Producto")
+
+        labels = ["Nombre", "Marca", "Tipo (refaccion/accesorio)", 
+                  "Categoria", "Version", "Precio Costo", "Precio Venta", "Existencias"]
+        entries = {}
+
+        for l in labels:
+            tk.Label(win, text=l + ":").pack()
+            e = tk.Entry(win)
+            e.pack()
+            entries[l] = e
+
+        def guardar():
+            try:
+                Producto.crear(
+                    entries["Nombre"].get(),
+                    entries["Marca"].get(),
+                    entries["Tipo (refaccion/accesorio)"].get(),
+                    entries["Categoria"].get(),
+                    entries["Version"].get(),
+                    float(entries["Precio Costo"].get()),
+                    float(entries["Precio Venta"].get()),
+                    int(entries["Existencias"].get())
+                )
+                messagebox.showinfo("Exito", "Producto agregado.")
+                win.destroy()
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+
+        tk.Button(win, text="Guardar", command=guardar).pack()
 
     @requiere_autenticacion
     def listar_productos(self):
         self.output.delete(0, tk.END)
+        productos = Producto.listar_todos()
+        for p in productos:
+            self.output.insert(tk.END, str(p))
 
     @requiere_admin
     def registrar_vehiculo(self):
         win = tk.Toplevel(self.master)
+        win.title("Registrar Vehiculo")
+
+        labels = ["Marca", "Modelo", "Año"]
+        entries = {}
+
+        for l in labels:
+            tk.Label(win, text=l + ":").pack()
+            e = tk.Entry(win)
+            e.pack()
+            entries[l] = e
+
+        def guardar():
+            try:
+                Vehiculo.crear(
+                    entries["Marca"].get(),
+                    entries["Modelo"].get(),
+                    int(entries["Año"].get())
+                )
+                messagebox.showinfo("Exito", "Vehiculo registrado.")
+                win.destroy()
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+
+        tk.Button(win, text="Guardar", command=guardar).pack()
 
     @requiere_autenticacion
     def listar_vehiculos(self):
         self.output.delete(0, tk.END)
+        vehiculos = Vehiculo.listar_todos()
+        for v in vehiculos:
+            self.output.insert(tk.END, str(v))
 
     @requiere_autenticacion
     def crear_venta(self):
         win = tk.Toplevel(self.master)
+        win.title("Crear Venta")
+
+        tk.Label(win, text="ID Producto:").pack()
+        id_producto = tk.Entry(win)
+        id_producto.pack()
+
+        tk.Label(win, text="Cantidad:").pack()
+        cantidad = tk.Entry(win)
+        cantidad.pack()
+
+        def guardar():
+            try:
+                # Usar el usuario actual
+                Venta.crear(
+                    self.current_user.id,  # ID usuario del login
+                    "2024-01-01",
+                    int(id_producto.get()),
+                    int(cantidad.get())
+                )
+                messagebox.showinfo("Exito", "Venta registrada.")
+                win.destroy()
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+
+        tk.Button(win, text="Registrar Venta", command=guardar).pack()
 
     @requiere_autenticacion
     def listar_ventas(self):
         self.output.delete(0, tk.END)
+        ventas = Venta.listar_todas()
+        for v in ventas:
+            self.output.insert(tk.END, str(v))
 
     @requiere_admin
     def registrar_compra(self):
         win = tk.Toplevel(self.master)
+        win.title("Registrar Orden de Compra")
+
+        labels = ["ID Proveedor", "Fecha", "ID Producto", "Cantidad", "Precio Unitario", "Estado"]
+        entries = {}
+
+        for l in labels:
+            tk.Label(win, text=l + ":").pack()
+            e = tk.Entry(win)
+            e.pack()
+            entries[l] = e
+
+        def guardar():
+            try:
+                OrdenCompra.crear(
+                    int(entries["ID Proveedor"].get()),
+                    entries["Fecha"].get(),
+                    int(entries["ID Producto"].get()),
+                    int(entries["Cantidad"].get()),
+                    float(entries["Precio Unitario"].get()),
+                    entries["Estado"].get()
+                )
+                messagebox.showinfo("Exito", "Orden de compra registrada.")
+                win.destroy()
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+
+        tk.Button(win, text="Guardar", command=guardar).pack()
 
     @requiere_admin
     def listar_compras(self):
         self.output.delete(0, tk.END)
+        compras = OrdenCompra.listar_todas()
+        for c in compras:
+            self.output.insert(tk.END, str(c))
 
     @requiere_autenticacion
     def registrar_nota(self):
         win = tk.Toplevel(self.master)
+        win.title("Registrar Nota de Producto Faltante")
+
+        tk.Label(win, text="Nombre Producto:").pack()
+        prod = tk.Entry(win)
+        prod.pack()
+
+        tk.Label(win, text="Detalles:").pack()
+        det = tk.Entry(win)
+        det.pack()
+
+        tk.Label(win, text="Fecha:").pack()
+        fecha = tk.Entry(win)
+        fecha.pack()
+
+        def guardar():
+            try:
+                # Usar el usuario actual
+                NotaPedido.crear(
+                    self.current_user.id,  # ID usuario del login
+                    prod.get(),
+                    det.get(),
+                    fecha.get()
+                )
+                messagebox.showinfo("Exito", "Nota registrada.")
+                win.destroy()
+            except Exception as e:
+                messagebox.showerror("Error", str(e))
+
+        tk.Button(win, text="Guardar", command=guardar).pack()
 
     @requiere_autenticacion
     def listar_notas(self):
         self.output.delete(0, tk.END)
+        notas = NotaPedido.listar_todas()
+        for n in notas:
+            self.output.insert(tk.END, str(n))
 
 if __name__ == "__main__":
     root = tk.Tk()
