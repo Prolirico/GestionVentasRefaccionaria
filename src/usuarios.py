@@ -7,16 +7,27 @@ def hash_password(pwd: str):
     return hashlib.sha256(pwd.encode("utf-8")).hexdigest()
 
 class Usuario:
+    CODIGO_ADMIN = "ADMIN123"
+    
     def __init__(self, id_, nombre, rol="vendedor"):
         self.id = id_
         self.nombre = nombre
         self.rol = rol
 
-    # CREAR USUARIO
+    # CREAR USUARIO CON CODIGO ADMIN
     @classmethod
-    def crear(cls, nombre, correo, password, rol="vendedor"):
+    def crear(cls, nombre, correo, password, rol="vendedor", codigo_admin=None):
         print(f"[DEBUG] Intentando crear usuario:")
         print(f"        nombre={nombre}, correo={correo}, rol={rol}")
+
+        # Validar si el rol es admin
+        if rol == 'administrador':
+            if not codigo_admin:
+                raise ValueError("Se requiere código de administrador para crear usuarios admin.")
+            if codigo_admin != cls.CODIGO_ADMIN:
+                raise ValueError("Código de administrador incorrecto.")
+            if not password:
+                raise ValueError("Los administradores deben tener una contraseña.")
 
         conn = get_conn()
         try:
@@ -38,13 +49,12 @@ class Usuario:
 
         except Exception as e:
             print(f"[ERROR] No se pudo crear el usuario: {e}")
-            return None
-
+            raise
         finally:
             cur.close()
             conn.close()
 
-    # LISTAR TODOS LOS USUARIOS
+    # LISTAR USUARIOS
     @classmethod
     def listar_todos(cls):
         print("[DEBUG] Listando usuarios...")
@@ -120,6 +130,23 @@ class Usuario:
             cur.execute("SELECT id, nombre, rol FROM usuarios WHERE correo = %s", (correo,))
             row = cur.fetchone()
             return cls(row[0], row[1], row[2]) if row else None
+        finally:
+            cur.close()
+            conn.close()
+
+    # ELIMINAR USUARIO (solo para admins)
+    def eliminar(self):
+        print(f"[DEBUG] Eliminando usuario ID={self.id}")
+
+        conn = get_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute("DELETE FROM usuarios WHERE id = %s", (self.id,))
+            conn.commit()
+            print("[DEBUG] Usuario eliminado correctamente.")
+        except Exception as e:
+            print(f"[ERROR] Error al eliminar usuario: {e}")
+            raise
         finally:
             cur.close()
             conn.close()
