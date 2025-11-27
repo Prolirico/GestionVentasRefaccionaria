@@ -72,7 +72,6 @@ class Usuario:
             cur.close()
             conn.close()
 
-    # OTROS METODOS
     @classmethod
     def autenticar(cls, correo, password):
         conn = get_conn()
