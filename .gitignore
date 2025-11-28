@@ -1,0 +1,9 @@
+# Entornos
+.env
+
+# Cache de Python
+__pycache__/
+*.pyc
+
+# Archivos temporales
+*.log
